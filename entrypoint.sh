@@ -46,4 +46,4 @@ echo "Initiating command \"$@\""
 
 echo ""
 
-exec "$@"
+sh -c "$@"
