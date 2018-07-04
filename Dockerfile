@@ -1,6 +1,6 @@
 FROM php:7.2-cli-alpine
 
-RUN apk --no-cache update
+RUN apk --no-cache update && apk --no-cache add shadow bash libmcrypt-dev
 
 COPY ./php.ini /usr/local/etc/php/php.ini
 
