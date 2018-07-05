@@ -15,42 +15,46 @@ echo ""
 
 set -e
 
-if [ ! -z ${USER_ID+x} ] && [ ! "$USER_ID" == "0" ]; then
-  echo "Changing www-data user id..."
-  usermod -u $USER_ID www-data
-fi
+export APPLICATION_ROOT="${PROJECT_DIR:-/var/app}"
 
-if [ ! -z ${GROUP_ID+x} ] && [ ! "GROUP_ID" == "0" ]; then
-  echo "Changing www-data group id..."
-  groupmod -g $GROUP_ID www-data
-fi
+export PHP_POST_MAX_SIZE="${PHP_POST_MAX_SIZE:-8M}"
+export PHP_UPLOAD_MAX_FILESIZE="${PHP_UPLOAD_MAX_FILESIZE:-8M}"
 
-chown -R www-data:www-data /var/app
+export PHP_MEMORY_LIMIT="${PHP_MEMORY_LIMIT:-128M}"
 
-if [ ! -z ${PHP_ENV_PATH+x} ]; then
-  if [ -f "$PHP_ENV_PATH" ]; then
-    echo "Adding PHP env variables..."
-    cp "$PHP_ENV_PATH" /etc/php/7.2/fpm/env.d/env
+export PHP_OPCACHE_ENABLE="${PHP_OPCACHE_ENABLE:-1}"
+export PHP_OPCACHE_MEMORY_CONSUMPTION="${PHP_OPCACHE_MEMORY_CONSUMPTION:-64}"
+export PHP_OPCACHE_MAX_ACCELERATED_FILES="${PHP_OPCACHE_MAX_ACCELERATED_FILES:-10000}"
+export PHP_OPCACHE_VALIDATE_TIMESTAMPS="${PHP_OPCACHE_VALIDATE_TIMESTAMPS:-0}"
+export PHP_OPCACHE_REVALIDATE_FREQ="${PHP_OPCACHE_REVALIDATE_FREQ:-0}"
+export PHP_OPCACHE_INTERNED_STRINGS_BUFFER="${PHP_OPCACHE_INTERNED_STRINGS_BUFFER:-16}"
+export PHP_OPCACHE_FAST_SHUTDOWN="${PHP_OPCACHE_FAST_SHUTDOWN:-1}"
+
+envsubst < /ops/files/php.ini.template > /usr/local/etc/php/php.ini
+
+WWW_DATA_DEFAULT=$(id -u www-data)
+
+if [[ -z "$(ls -n $APPLICATION_ROOT | grep $WWW_DATA_DEFAULT)" ]]; then
+  : ${WWW_DATA_UID=$(ls -ldn /var/app | awk '{print $3}')}
+  : ${WWW_DATA_GID=$(ls -ldn /var/app | awk '{print $4}')}
+
+  export WWW_DATA_UID
+  export WWW_DATA_GID
+
+  if [ "$WWW_DATA_UID" != "0" ] && [ "$WWW_DATA_UID" != "$(id -u www-data)" ]; then
+    echo "Changing www-data UID and GID to ${WWW_DATA_UID} and ${WWW_DATA_GID}."
+    usermod -u $WWW_DATA_UID www-data
+    groupmod -g $WWW_DATA_GID www-data
+    chown -R www-data:www-data /var/app
+    echo "Changed www-data UID and GID to ${WWW_DATA_UID} and ${WWW_DATA_GID}."
   fi
 fi
 
-if [ ! -z ${PHP_UPLOAD_SIZE_MAX_MB+x} ]; then
-  echo "Changing max upload and post size..."
-  sed -ri "s#post_max_size=[0-9]+M#post_max_size=${PHP_UPLOAD_SIZE_MAX_MB}M#g" /usr/local/etc/php/php.ini
-  sed -ri "s#upload_max_filesize=[0-9]+M#upload_max_filesize=${PHP_UPLOAD_SIZE_MAX_MB}M#g" /usr/local/etc/php/php.ini
-  sed -ri "s#client_max_body_size [0-9]+m;#client_max_body_size ${PHP_UPLOAD_SIZE_MAX_MB}m;#g" /etc/nginx/sites-available/site.conf
-fi
-
-if [ ! -z ${PHP_MEMORY_LIMIT+x} ]; then
-  echo "Setting php memory limit..."
-  sed -ri "s#memory_limit = [0-9]+M#memory_limit = ${PHP_MEMORY_LIMIT}M#g" /usr/local/etc/php/php.ini
-fi
-
-if [ ! -z ${DEPLOYMENT_SCRIPT_PATH+x} ]; then
-  if [ -f "$DEPLOYMENT_SCRIPT_PATH" ]; then
+if [ ! -z ${STARTUP_SCRIPT+x} ]; then
+  if [ -f "$STARTUP_SCRIPT" ]; then
     echo "Making deployment up script executable..."
-    chmod +x "$DEPLOYMENT_SCRIPT_PATH"
-    bash "$DEPLOYMENT_SCRIPT_PATH"
+    chmod +x "$STARTUP_SCRIPT"
+    bash "$STARTUP_SCRIPT"
   fi
 fi
 
