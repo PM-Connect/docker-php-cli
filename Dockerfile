@@ -6,7 +6,7 @@ ENV PROJECT_DIR=$PROJECT_DIR
 COPY ./php.ini.template ./startup.php ./entrypoint.sh /ops/files/
 
 RUN apk --no-cache update && \
-    apk --no-cache add shadow bash libmcrypt-dev && \
+    apk --no-cache add gettext shadow bash libmcrypt-dev && \
     mkdir -p /var/app/public && \
     cp /ops/files/startup.php /var/app/public/index.php && \
     cp /ops/files/entrypoint.sh /entrypoint.sh && \
